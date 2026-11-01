@@ -17,11 +17,11 @@ if (!executable) throw new Error('Set SPIDER_APP_EXECUTABLE to the actual built 
 const port = Number(process.env.SPIDERSEO_CHROME_TEST_PORT || 47836);
 const temp = fs.mkdtempSync(path.join(os.tmpdir(),'spider-native-chrome-'));
 const extension = path.join(temp,'extension'); fs.mkdirSync(extension);
-for (const name of ['src','vendor','icons','manifest.json','panel.html','panel.css','devtools.html','about.html','privacy.html']) fs.cpSync(path.join(source,name),path.join(extension,name),{recursive:true});
+for (const name of ['src','icons','manifest.json','panel.html','panel.css','devtools.html','about.html','privacy.html']) fs.cpSync(path.join(source,name),path.join(extension,name),{recursive:true});
 const companionPath=path.join(extension,'src/companion.js');
 fs.writeFileSync(companionPath,fs.readFileSync(companionPath,'utf8').replace('127.0.0.1:47836',`127.0.0.1:${port}`));
 const manifest=JSON.parse(fs.readFileSync(path.join(extension,'manifest.json')));
-manifest.permissions.push(...manifest.optional_permissions);manifest.host_permissions=manifest.optional_host_permissions;delete manifest.optional_permissions;delete manifest.optional_host_permissions;
+manifest.permissions.push(...(manifest.optional_permissions || []));manifest.host_permissions=manifest.optional_host_permissions;delete manifest.optional_permissions;delete manifest.optional_host_permissions;
 fs.writeFileSync(path.join(extension,'manifest.json'),JSON.stringify(manifest));
 const env={...process.env,CHROME_PATH:process.env.CHROME_PATH || chromium.executablePath(),SPIDERSEO_APP_SUPPORT:path.join(temp,'native'),SPIDERSEO_STORE_PATH:path.join(temp,'native/crawl.sqlite')};
 const sleep = ms => new Promise(r => setTimeout(r,ms));
@@ -98,38 +98,6 @@ try {
  assert.ok(pageUpload.result.page.audit.issues);
  assert.ok(pageUpload.result.page.performance.navigation);
  console.log('PASS manual page audit + timing report delivered to native app and MCP');
- if(process.env.SPIDER_TEST_LIGHTHOUSE) {
-  const queued=await call('spider_chrome_extension',{action:'test',url,allow_private_hosts:true,strategy:'desktop'});
-  const result=await waitJob(queued.id,180000);assert.ok(result.result.lighthouse.lighthouseVersion);assert.equal(result.result.using_extension,true);
-  assert.ok(result.result.page.audit);
-  assert.ok(result.result.capture.events.some(e=>e.name==='fixture_view'));
-  const history=await controller('reports');assert.ok(history.reports.some(r=>r.id===queued.id));
-  await worker.evaluate(tabId => chrome.tabs.update(tabId,{active:true}),result.result.tabId);
-  await panel.reload();
-  await panel.waitForFunction(() => document.body.dataset.ready === 'true');
-  await panel.waitForFunction(() => document.querySelector('#status').textContent.includes('Full test completed'));
-  assert.equal(await panel.locator('.score-card').count(),4,'Reopening the popup restores the finished report');
-  const report=result.result.lighthouse;
-  for(const category of ['accessibility','best-practices','seo'])assert.equal(typeof report.categories[category].score,'number');
-  const wrongTab=await panel.evaluate(() => chrome.runtime.sendMessage({type:'companion:sendTest',tabId:-1}));
-  assert.ok(wrongTab.error,'A report from another tab must not be sent accidentally');
-  const sent=await panel.evaluate(tabId => chrome.runtime.sendMessage({type:'companion:sendTest',tabId}),result.result.tabId);
-  assert.ok(!sent.error,sent.error);
-  const uploaded=await controller('latest');assert.equal(uploaded.result.lighthouse.lighthouseVersion,report.lighthouseVersion);
-  const received=await call('spider_chrome_extension',{action:'latest'});assert.equal(received.result.lighthouse.lighthouseVersion,report.lighthouseVersion);
-  console.log('PASS real Lighthouse LHR returned to app/MCP; standalone Send report also received by both; performance availability:',report.categories.performance.score);
- }
- if (process.env.SPIDER_TEST_NATIVE_LIGHTHOUSE) {
-   const result = await panel.evaluate(() => chrome.runtime.sendMessage({type:'companion:nativeLighthouse',tabId:undefined}));
-   assert.ok(result.error,'Missing page cannot start a native audit');
-   const tabId = await worker.evaluate(async url => (await chrome.tabs.query({})).find(t=>t.url?.startsWith(url)).id,url);
-   const native = await panel.evaluate(tabId => chrome.runtime.sendMessage({type:'companion:nativeLighthouse',tabId,strategy:'desktop'}),tabId);
-   assert.ok(!native.error,native.error);
-   assert.equal(native.result.engine,'native');
-   for (const key of ['performance','accessibility','best-practices','seo']) assert.equal(typeof native.result.lighthouse.categories[key].score,'number',key);
-   assert.equal((await controller('latest')).result.engine,'native');
-   console.log('PASS COMPLETE native Lighthouse via extension → app → report: all FOUR scores numeric');
- }
  await call('spider_chrome_extension',{action:'disconnect'});
  assert.equal((await controller('status')).available,false);
  console.log('PASS disconnect/revocation; native end-to-end smoke complete');

@@ -7,11 +7,11 @@ import os from 'node:os';
 import path from 'node:path';
 const source = fileURLToPath(new URL('../', import.meta.url));
 const extension = fs.mkdtempSync(path.join(os.tmpdir(),'spider-chrome-smoke-'));
-for (const name of ['src','vendor','icons','manifest.json','panel.html','panel.css','devtools.html','about.html','privacy.html']) fs.cpSync(path.join(source,name),path.join(extension,name),{recursive:true});
+for (const name of ['src','icons','manifest.json','panel.html','panel.css','devtools.html','about.html','privacy.html']) fs.cpSync(path.join(source,name),path.join(extension,name),{recursive:true});
 // Simulate already granted optional permissions in the isolated test profile.
 // Production manifest remains per-site/optional; no browser prompt is auto-accepted.
 const manifest = JSON.parse(fs.readFileSync(path.join(extension,'manifest.json')));
-manifest.permissions.push(...manifest.optional_permissions);
+manifest.permissions.push(...(manifest.optional_permissions || []));
 manifest.host_permissions = manifest.optional_host_permissions;
 delete manifest.optional_permissions; delete manifest.optional_host_permissions;
 fs.writeFileSync(path.join(extension,'manifest.json'),JSON.stringify(manifest));
@@ -33,13 +33,13 @@ try {
  await panel.goto(`chrome-extension://${extensionId}/panel.html`);
  const send = (type, extra={}) => panel.evaluate(async args => chrome.runtime.sendMessage(args),{type,tabId,...extra});
  await panel.waitForFunction(() => document.body.dataset.ready === 'true');
- assert.equal(await panel.locator('[role="tab"]').count(),4);
+ assert.equal(await panel.locator('[role="tab"]').count(),3);
  assert.equal(await panel.locator('[role="tabpanel"]:visible').count(),1);
  await panel.locator('#tab-overview').focus();
  await panel.keyboard.press('ArrowRight');
  assert.equal(await panel.locator('#tab-analytics').getAttribute('aria-selected'),'true');
  await panel.keyboard.press('End');
- assert.equal(await panel.locator('#tab-lighthouse').getAttribute('aria-selected'),'true');
+ assert.equal(await panel.locator('#tab-analytics').getAttribute('aria-selected'),'true');
  await panel.keyboard.press('Home');
  assert.equal(await panel.locator('#tab-connection').getAttribute('aria-selected'),'true');
  await panel.locator('#tab-overview').click();
@@ -77,7 +77,7 @@ try {
  result = await send('state'); assert.ok(result.state.events.some(e => e.kind==='navigation'));
  await panel.waitForFunction(() => document.querySelector('#events').textContent.includes('purchase'));
  await panel.setViewportSize({width:760,height:600});
- for (const name of ['overview','analytics','lighthouse','connection']) {
+ for (const name of ['overview','analytics','connection']) {
    await panel.locator(`#tab-${name}`).click();
    assert.equal(await panel.locator('[role="tabpanel"]:visible').count(),1);
    assert.ok(await panel.evaluate(() => document.documentElement.scrollWidth <= innerWidth),'No horizontal page overflow');

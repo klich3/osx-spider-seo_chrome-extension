@@ -9,7 +9,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root,'manifest.json')));
 assert.equal(manifest.manifest_version,3);
 assert.ok(!manifest.host_permissions?.length,'Site access must stay optional');
 assert.ok(!manifest.permissions.includes('debugger'),'Debugger must stay optional');
-assert.ok(manifest.optional_permissions.includes('debugger'));
+assert.ok(!(manifest.optional_permissions || []).includes('debugger'));
 for (const forbidden of ['history','cookies','webRequestBlocking','nativeMessaging','management','unlimitedStorage']) assert.ok(!manifest.permissions.includes(forbidden),forbidden);
 assert.deepEqual(manifest.content_security_policy,{extension_pages:"script-src 'self'; object-src 'none'"});
 assert.equal(manifest.options_page,'about.html');
@@ -42,9 +42,9 @@ for (const name of fs.readdirSync(path.join(root,'src')).filter(x => x.endsWith(
  };
  walk(parse(source,{ecmaVersion:'latest',sourceType:'module'}));
 }
-for (const file of ['vendor/lighthouse.js','vendor/LIGHTHOUSE-LICENSE','vendor/THIRD-PARTY-NOTICES.txt','STORE-REVIEW.md']) assert.ok(fs.statSync(path.join(root,file)).size>0,file);
+for (const file of ['STORE-REVIEW.md']) assert.ok(fs.statSync(path.join(root,file)).size>0,file);
 const privacy=fs.readFileSync(path.join(root,'privacy.html'),'utf8');
 assert.ok(privacy.includes('Limited Use'));
 assert.ok(privacy.includes('127.0.0.1:47836'));
 assert.ok(privacy.includes('MCP client'));
-console.log('PASS: MV3, optional site/debugger permissions, CSP, icons, local scripts, About/privacy and notices. Manual store/account/policy review still required.');
+console.log('PASS: MV3, optional site permissions, no debugger permission, CSP, icons, local scripts and About/privacy. Manual store/account/policy review still required.');

@@ -6,8 +6,6 @@
   "scripts": {
     "test": "node --test tests/*.test.js",
     "test:browser": "node tests/browser-smoke.mjs",
-    "build": "node scripts/build-lighthouse.mjs && node scripts/notices.mjs",
-    "test:lighthouse": "node tests/lighthouse-smoke.mjs",
     "check": "node scripts/check-policy.mjs",
     "package": "node scripts/package.mjs",
     "test:native": "node tests/native-smoke.mjs",
@@ -15,11 +13,7 @@
   },
   "devDependencies": {
     "acorn": "8.19.0",
-    "esbuild": "0.28.2",
-    "lighthouse": "13.5.0",
-    "magic-string": "1.4.5",
-    "playwright": "1.64.1",
-    "terser": "5.51.2"
+    "playwright": "1.64.1"
   },
   "engines": {
     "node": ">=22.19"

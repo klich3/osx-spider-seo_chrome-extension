@@ -34,12 +34,8 @@ async function readTargetURL() {
   return Number.isInteger(tabId) ? (await chrome.tabs.get(tabId).catch(() => null))?.url : null;
 }
 currentTabURL = await readTargetURL();
-const preferences = await chrome.storage.local.get(['selectedWorkspace','lighthouseStrategy','lighthouseEngine']);
+const preferences = await chrome.storage.local.get(['selectedWorkspace']);
 selectTab(tabs.find(tab => tab.id === preferences.selectedWorkspace) || $('tab-connection'), false, false);
-$('lighthouse-strategy').value = preferences.lighthouseStrategy === 'desktop' ? 'desktop' : 'mobile';
-$('lighthouse-engine').value = preferences.lighthouseEngine === 'chrome' ? 'chrome' : 'native';
-$('lighthouse-engine').onchange = () => chrome.storage.local.set({lighthouseEngine:$('lighthouse-engine').value});
-$('lighthouse-strategy').onchange = () => chrome.storage.local.set({lighthouseStrategy:$('lighthouse-strategy').value});
 async function send(type, extra = {}) {
   const result = await chrome.runtime.sendMessage({type, tabId, ...extra});
   if (result.error) throw new Error(result.error);
@@ -117,15 +113,6 @@ async function refreshConnection() {
     $('connection-summary').textContent = connection.connected ? '· Connected' : connection.paired ? '· Unavailable' : '· Standalone';
     $('connection-badge').textContent = connection.connected ? 'Connected' : connection.paired ? 'Unavailable' : 'Standalone';
     $('disconnect').disabled = !connection.paired;
-    if (connection.running) { $('lighthouse-summary').textContent = connection.progress; $('lighthouse-result').textContent = `Using Chrome extension — ${connection.progress}`; $('status').textContent = connection.progress; }
-    $('full-test').disabled = connection.running;
-    $('lighthouse').disabled = connection.running;
-    $('lighthouse-target').textContent = currentTabURL ? `Page to test: ${currentTabURL}` : 'Open a website to test it.';
-    if (!connection.running && wasRunning) {
-      showLighthouse(await companion('latest').catch(() => null));
-      await restoreTest();
-    }
-    wasRunning = connection.running;
   } catch (error) { connectionError=error.message; $('connection').textContent=connectionError; }
 }
 $('pair').onclick = async () => {
@@ -141,78 +128,9 @@ $('disconnect').onclick = async () => {
   catch (error) { connectionError=error.message; $('connection').textContent=connectionError; }
 };
 $('allow-site').onclick = () => allowSite().then(() => { actionMessage='This site is allowed for app/MCP tests.';render(); }).catch(showActionError);
-function lighthouseMessage(message) {
-  $('lighthouse-result').textContent = message;
-  $('lighthouse-summary').textContent = message;
-}
-
-let latestLighthouse;
-function showLighthouse(result) {
-  if (!result || result.tabId !== tabId) return;
-  latestLighthouse = result;
-  const lhr = result.lighthouse;
-  const cards = Object.entries(lhr.categories || {}).map(([key,category]) => {
-    const card = document.createElement('div'); card.className='score-card';
-    const score = document.createElement('strong'); score.textContent=category.score == null ? '—' : String(Math.round(category.score * 100));
-    const title = document.createElement('span'); title.textContent=category.title || key;
-    card.append(score,title); return card;
-  });
-  const grid = document.createElement('div'); grid.className='score-grid'; grid.append(...cards);
-  const warning = document.createElement('p'); warning.className='hint';
-  warning.textContent = [result.engine === 'native' ? 'Complete report from desktop app · clean Chrome session · sent to app/MCP.' : null,lhr.runtimeError?.message,...(lhr.runWarnings || [])].filter(Boolean).join(' ');
-  $('lighthouse-summary').replaceChildren(grid,warning);
-  $('lighthouse-result').textContent = JSON.stringify({source:result.source, using_extension:true, url:result.lighthouse.finalDisplayedUrl || result.lighthouse.finalUrl, version:result.lighthouse.lighthouseVersion,
-    scores:Object.fromEntries(Object.entries(result.lighthouse.categories || {}).map(([key,value]) => [key, value.score])), runtimeError:result.lighthouse.runtimeError, warnings:result.lighthouse.runWarnings, failedToRun:Object.entries(result.lighthouse.audits || {}).filter(([,a]) => a.errorMessage).map(([id,a]) => ({id,error:a.errorMessage}))},null,2);
-}
-function showTest(result) {
-  if (!result || result.tabId !== tabId || result.completedAt === lastTestTime) return;
-  lastTestTime = result.completedAt;
-  if (result.lighthouse) showLighthouse(result);
-  actionMessage = `Full test completed${result.sent ? ' · Report sent to app/MCP' : ' · Report saved locally; use Send full report to share it'}.${result.warnings?.length ? ' ' + result.warnings.join(' ') : ''}`;
-  render();
-}
-async function restoreTest() { showTest(await companion('latestTest').catch(() => null)); }
-$('send-test').onclick = () => companion('sendTest').then(() => { actionMessage='Full report sent to local app/MCP.';render(); }).catch(showActionError);
-$('full-test').onclick = async () => {
-  $('full-test').disabled = true;
-  try {
-    if (!currentTabURL) throw new Error('Open an HTTP(S) page first.');
-    const granted = await chrome.permissions.request({permissions:['debugger'],origins:[siteOrigin(currentTabURL),...providerOrigins]});
-    if (!granted) throw new Error('Site and debugger access are required for a full test.');
-    const result = await companion('test', {strategy:$('lighthouse-strategy').value});
-    if (result.lighthouse) showLighthouse(result);
-    await send('state');
-    showTest(result);
-  } catch (error) { showActionError(error); }
-  finally { $('full-test').disabled = false; }
-};
-$('lighthouse').onclick = async () => {
-  $('lighthouse').disabled = true; lighthouseMessage('Using Chrome extension — running local Lighthouse…');
-  try {
-    if (!currentTabURL) throw new Error('Open the website you want to test, then reopen Spider SEO.');
-    siteOrigin(currentTabURL);
-    if ($('lighthouse-engine').value === 'native') {
-      showLighthouse(await companion('nativeLighthouse', {strategy:$('lighthouse-strategy').value}));
-      return;
-    }
-    if (!await chrome.permissions.request({permissions:['debugger']})) throw new Error('Chrome permission was declined. Click Run Lighthouse and allow debugging to start.');
-    showLighthouse(await companion('lighthouse', {strategy:$('lighthouse-strategy').value}));
-  }
-  catch (error) { lighthouseMessage(error.message); }
-  finally { $('lighthouse').disabled = false; }
-};
 $('send-page').onclick = () => companion('sendPage').then(() => { actionMessage='Page report sent to local app/MCP.';render(); }).catch(showActionError);
-$('send-lighthouse').onclick = () => companion('send').then(() => { actionMessage='Lighthouse report sent to local app/MCP.'; render(); }).catch(error => lighthouseMessage(error.message));
-$('export-lighthouse').onclick = () => {
-  if (!latestLighthouse) return;
-  const url = URL.createObjectURL(new Blob([JSON.stringify(latestLighthouse.lighthouse,null,2)], {type:'application/json'}));
-  const link = document.createElement('a'); link.href=url; link.download='spider-seo-lighthouse.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url),1000);
-};
-$('delete-data').onclick = () => companion('delete').then(() => { latestLighthouse=null; $('lighthouse-summary').replaceChildren(); $('page-summary').replaceChildren(); $('lighthouse-result').textContent='No Lighthouse report yet.'; return send('state'); }).catch(showActionError);
+$('delete-data').onclick = () => companion('delete').then(() => { $('page-summary').replaceChildren(); return send('state'); }).catch(showActionError);
 await send('state').catch(showActionError);
-await refreshConnection();
-showLighthouse(await companion('latest').catch(() => null));
-await restoreTest();
 for (const button of document.querySelectorAll('button')) button.disabled = false;
 render();
 await refreshConnection();

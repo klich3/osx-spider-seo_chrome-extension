@@ -5,11 +5,11 @@
 <button id="tab-connection" role="tab" aria-selected="true" aria-controls="panel-connection" tabindex="-1">Connection <span id="connection-badge">Standalone</span></button>
 <button id="tab-overview" role="tab" aria-selected="false" aria-controls="panel-overview" tabindex="0">Overview</button>
 <button id="tab-analytics" role="tab" aria-selected="false" aria-controls="panel-analytics" tabindex="-1">Analytics</button>
-<button id="tab-lighthouse" role="tab" aria-selected="false" aria-controls="panel-lighthouse" tabindex="-1">Lighthouse</button>
+
 </nav>
 <div class="status-bar"><span class="status-dot" aria-hidden="true"></span><p id="status" role="status">Loading selected page…</p></div>
 <main><div id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" hidden>
-<div class="intro"><p class="eyebrow">SELECTED PAGE</p><h1>Understand this page</h1><p class="hint">Run a full test to inspect SEO, capture Analytics for 10 seconds and run Lighthouse. Paired results are sent to the app/MCP automatically. Open Analytics to record tags and events, or Lighthouse for a local audit.</p><div class="actions"><button disabled id="full-test" class="primary">Run full test</button><button disabled id="send-test">Send full report</button><button disabled id="snapshot">Inspect page</button><button disabled id="send-page">Send page report to app/MCP</button></div></div>
+<div class="intro"><p class="eyebrow">SELECTED PAGE</p><h1>Understand this page</h1><p class="hint">Inspect this page to detect installed tags and pixels. Use Analytics to capture events and consent diagnostics.</p><div class="actions"><button disabled id="snapshot">Inspect page</button><button disabled id="send-page">Send page report to app/MCP</button></div></div>
 <section><h2>Page audit <span id="audit-summary"></span></h2><p class="hint">Checks use the current rendered DOM and heuristics. Character counts do not guarantee how Google displays a snippet.</p><ul id="audit-issues"></ul></section><details><summary>Observed browser timing</summary><pre id="browser-timing">Inspect this page first.</pre></details>
 <section><h2>Rendered page</h2><dl id="page-summary"><dt>Page</dt><dd>Inspect a page to see its metadata.</dd></dl><details><summary>Technical page data</summary><pre id="seo">Not inspected.</pre></details></section>
 </div><div id="panel-analytics" role="tabpanel" aria-labelledby="tab-analytics" hidden>
@@ -20,16 +20,9 @@
 <section><h2>Consent banners</h2><div id="banners">Not inspected.</div></section>
 <section><h2>Timeline <span id="count"></span></h2><label>Filter <input id="filter" type="search" placeholder="GA4, purchase, consent…"></label><div class="scroll"><table><thead><tr><th>Time</th><th>Source</th><th>Event / tag</th><th>Consent / scenario</th><th>Result</th></tr></thead><tbody id="events"></tbody></table></div></section>
 <p class="hint">Script detected ≠ configured tag ≠ network event. A completed request does not prove that the provider accepted or stored the event. No observed event does not prove that a tag is absent. Custom/proxied endpoints and iframe data layers are not covered yet.</p>
-</div><div id="panel-lighthouse" role="tabpanel" aria-labelledby="tab-lighthouse" hidden>
-<div class="intro"><p class="eyebrow">LOCAL AUDIT</p><h1>Lighthouse</h1><p class="hint">Choose Mobile or Desktop and click Run Lighthouse. On the first run, Chrome asks you to allow debugging: accept to start the test. Keep this page open; you can close this popup and return for the results.</p></div>
-<details id="lighthouse-settings" open><summary>Lighthouse in Chrome</summary>
-<p class="hint">Runs locally on this page with your Chrome session. It reloads the page, temporarily changes emulation/throttling and uses Chrome’s visible debugger indicator. Existing site storage is preserved. Chrome restricts some audits; an unavailable score stays empty with the reported error. Close the page’s DevTools before running.</p>
-<p id="lighthouse-target" class="hint"></p>
-<select id="lighthouse-strategy" aria-label="Lighthouse device"><option value="mobile">Mobile</option><option value="desktop">Desktop</option></select>
-<button disabled id="lighthouse" class="primary">Run Lighthouse</button><label>Run in <select id="lighthouse-engine"><option value="native">Desktop app · complete report</option><option value="chrome">This Chrome tab · may be partial</option></select></label><p class="hint">Complete report: pair in Connection first. The desktop app requires Chrome and Lighthouse/Node installed and runs a clean Chrome session without this tab’s cookies. This Chrome tab: standalone, keeps your session; Performance may be unavailable.</p><button disabled id="send-lighthouse">Send report to app/MCP</button><button disabled id="export-lighthouse">Export Lighthouse JSON</button>
-<div id="lighthouse-summary" aria-live="polite"></div><details><summary>Technical report & progress</summary><pre id="lighthouse-result">No Lighthouse report yet.</pre></details></details></div><div id="panel-connection" role="tabpanel" aria-labelledby="tab-connection">
+</div><div id="panel-connection" role="tabpanel" aria-labelledby="tab-connection">
 <div class="intro"><p class="eyebrow">CONFIGURATION</p><h1>Connect your workspace</h1><p class="hint">Optional: connect this browser to Spider SEO on this Mac. Page inspection and capture also work without pairing.</p></div>
-<details id="connection-settings" open><summary>App / MCP connection <span id="connection-summary"></span></summary><p id="connection" role="status">Not paired.</p>
+<details id="connection-settings" open><summary>App / MCP connection <span id="connection-summary"></span></summary><p id="connection" role="status">Not paired.</p><p class="hint">Fixed local endpoint: <strong>127.0.0.1:47836</strong>. Open Spider SEO and enable the Chrome companion in Debug. No port scanning or automatic port changes.</p>
 <p class="hint">Pairing lets the Spider SEO app and its MCP open pages you request and receive rendered page, analytics or Lighthouse results on this Mac. Only sites you allow can be inspected. Your MCP client may pass results to its AI provider. Disconnect revokes local access.</p>
 <label>Pairing code <input id="pair-code" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="8 digits from app/MCP"></label>
 <button disabled id="pair">Pair local app/MCP</button><button disabled id="disconnect">Disconnect</button>
